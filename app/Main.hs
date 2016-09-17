@@ -68,7 +68,7 @@ app pathToListen =
                let chatID = TGM.chat_id . TGM.chat $ m
                let messageID = TGM.message_id m
 
-               let req = TGM.SendMessageRequest (showT chatID) messageText Nothing Nothing Nothing (Just messageID) Nothing
+               let req = replyToMessageRequest chatID messageText messageID
                resp <- liftIO $ doSendMessage (TGM.Token token) req
                case resp of
                    Left _ -> do
@@ -91,6 +91,9 @@ localDayOfWeek = (\(_, _, dayOfWeek) -> dayOfWeek)
                . toWeekDate
                . localDay
                . utcToLocalTime hkt
+
+replyToMessageRequest :: Int -> T.Text -> Int -> TGM.SendMessageRequest
+replyToMessageRequest chatID body replyToMsgID = TGM.SendMessageRequest (showT chatID) body Nothing Nothing Nothing (Just replyToMsgID) Nothing
 
 doSendMessage :: TGM.Token
                  -> TGM.SendMessageRequest
