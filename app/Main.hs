@@ -25,10 +25,11 @@ data BKConfig = BKConfig {
     port           :: Int -- "PORT"
   , tgmbkToken     :: T.Text -- "TGMBK_TOKEN"
   , tgmbkLocations :: [T.Text] -- "TGMBK_LOCATIONS"
+  , tgmbkLocation404Msg :: T.Text -- "TGMBK_LOCATION_404_MSG"
   } deriving (Generic, Show)
 
 instance DefConfig BKConfig where
-  defConfig = BKConfig 8080 "" ["Mon", "Tue", "Wed", "Thu", "Fri"]
+  defConfig = BKConfig 8080 "" ["Mon", "Tue", "Wed", "Thu", "Fri"] "No breakfast for you (≧∇≦)b"
 
 instance FromEnv BKConfig
 
@@ -54,17 +55,18 @@ runApp cfg =
 app :: String -> SpockM () MySession MyAppState ()
 app pathToListen =
     do get root $
-           text "Hello World!"
+           text ""
        post (static pathToListen) $
             do (MyAppState (BKConfig {
                     tgmbkToken=token
                   , tgmbkLocations=locations
+                  , tgmbkLocation404Msg=location404Msg
                   })) <- getState
                TGM.Update { TGM.message=Just m } <- jsonBody'
                dayOfWeek <- liftIO $ localDayOfWeek <$> getCurrentTime
                messageText <- return $ case locations `safeIndex` (dayOfWeek - 1) of
                                            Just x -> x
-                                           Nothing -> "No breakfast for you :P"
+                                           Nothing -> location404Msg
 
                chatID <- return $ TGM.chat_id . TGM.chat $ m
                messageID <- return $ TGM.message_id m
