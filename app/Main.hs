@@ -93,7 +93,7 @@ localDayOfWeek = (\(_, _, dayOfWeek) -> dayOfWeek)
                . utcToLocalTime hkt
 
 replyToMessageRequest :: Int -> T.Text -> Int -> TGM.SendMessageRequest
-replyToMessageRequest chatID body replyToMsgID = TGM.SendMessageRequest (showT chatID) body Nothing Nothing Nothing (Just replyToMsgID) Nothing
+replyToMessageRequest chatID bodyText replyToMsgID = TGM.SendMessageRequest (showT chatID) bodyText Nothing Nothing Nothing (Just replyToMsgID) Nothing
 
 doSendMessage :: TGM.Token
                  -> TGM.SendMessageRequest

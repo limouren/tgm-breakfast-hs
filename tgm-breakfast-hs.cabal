@@ -31,7 +31,6 @@ executable tgm-breakfast-hs-exe
                      , http-client-tls
                      , mtl
                      , servant-client
-                     , split
                      , telegram-api
                      , text
                      , time
