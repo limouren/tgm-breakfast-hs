@@ -2,20 +2,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Main where
 
 import           Control.Monad.Trans
-import           Data.Char                   (isSpace)
-import           Data.IORef
-import           Data.List
-import           Data.List.Split
-import           Data.Monoid
 import qualified Data.Text                   as T
 import           Data.Time
 import           Data.Time.Calendar.WeekDate
 import           GHC.Generics
 import           Network.HTTP.Client         (newManager)
 import           Network.HTTP.Client.TLS     (tlsManagerSettings)
+import           Servant.Common.Req          (ServantError)
 import           System.Envy
 import           Web.Spock
 import           Web.Spock.Config
@@ -71,12 +68,12 @@ app pathToListen =
                let chatID = TGM.chat_id . TGM.chat $ m
                let messageID = TGM.message_id m
 
-               let request = TGM.SendMessageRequest (showT chatID) messageText Nothing Nothing Nothing (Just messageID) Nothing
-               resp <- liftIO $ doSendMessage (TGM.Token token) request
+               let req = TGM.SendMessageRequest (showT chatID) messageText Nothing Nothing Nothing (Just messageID) Nothing
+               resp <- liftIO $ doSendMessage (TGM.Token token) req
                case resp of
-                   Left e -> do
+                   Left _ -> do
                      liftIO $ putStrLn "Request failed"
-                   Right (TGM.Response m) -> do
+                   Right (TGM.Response _) -> do
                      liftIO $ putStrLn "Request succeded"
 
                text ""
@@ -95,13 +92,12 @@ localDayOfWeek = (\(_, _, dayOfWeek) -> dayOfWeek)
                . localDay
                . utcToLocalTime hkt
 
-doSendMessage token request = do
+doSendMessage :: TGM.Token
+                 -> TGM.SendMessageRequest
+                 -> IO (Either ServantError TGM.MessageResponse)
+doSendMessage token req = do
     manager <- newManager tlsManagerSettings
-    TGM.sendMessage token request manager
+    TGM.sendMessage token req manager
 
 showT :: Show a => a -> T.Text
 showT = T.pack . show
-
-trim :: String -> String
-trim = f . f
-   where f = reverse . dropWhile isSpace
