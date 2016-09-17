@@ -64,14 +64,14 @@ app pathToListen =
                   })) <- getState
                TGM.Update { TGM.message=Just m } <- jsonBody'
                dayOfWeek <- liftIO $ localDayOfWeek <$> getCurrentTime
-               messageText <- return $ case locations `safeIndex` (dayOfWeek - 1) of
-                                           Just x -> x
-                                           Nothing -> location404Msg
+               let messageText = case locations `safeIndex` (dayOfWeek - 1) of
+                                   Just x -> x
+                                   Nothing -> location404Msg
 
-               chatID <- return $ TGM.chat_id . TGM.chat $ m
-               messageID <- return $ TGM.message_id m
+               let chatID = TGM.chat_id . TGM.chat $ m
+               let messageID = TGM.message_id m
 
-               request <- return $ TGM.SendMessageRequest (showT chatID) messageText Nothing Nothing Nothing (Just messageID) Nothing
+               let request = TGM.SendMessageRequest (showT chatID) messageText Nothing Nothing Nothing (Just messageID) Nothing
                resp <- liftIO $ doSendMessage (TGM.Token token) request
                case resp of
                    Left e -> do
