@@ -41,6 +41,7 @@ data MyAppState = MyAppState BKConfig
 main :: IO ()
 main =
     do (Right cfg) <- decodeEnv :: IO (Either String BKConfig)
+       print cfg
        runApp cfg
 
 runApp :: BKConfig -> IO ()
@@ -57,9 +58,10 @@ app pathToListen =
        post (static pathToListen) $
             do (MyAppState (BKConfig {
                     tgmbkToken=token
-                  , tgmbkLocations=locations
+                  -- , tgmbkLocations=locations
                   , tgmbkLocation404Msg=location404Msg
                   })) <- getState
+               let locations = ["匯成（長城對面）", "Grove", "瑞士咖啡室", "廳2", "J's Petite Kitchen"]
                TGM.Update { TGM.message=Just m } <- jsonBody'
                let hasTomorrow = case TGM.text m of
                                   Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
