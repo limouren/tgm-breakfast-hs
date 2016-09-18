@@ -6,6 +6,7 @@
 module Main where
 
 import           Control.Monad.Trans
+import           Data.Maybe
 import qualified Data.Text                   as T
 import           Data.Time
 import           Data.Time.Calendar.WeekDate
@@ -60,11 +61,12 @@ app pathToListen =
                   , tgmbkLocation404Msg=location404Msg
                   })) <- getState
                TGM.Update { TGM.message=Just m } <- jsonBody'
+               let hasTomorrow = case TGM.text m of
+                                  Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
+                                  Nothing -> False
                dayOfWeek <- liftIO $ localDayOfWeek <$> getCurrentTime
-               let messageText = case locations `safeIndex` (dayOfWeek - 1) of
-                                   Just x -> x
-                                   Nothing -> location404Msg
 
+               let messageText = locationMessage hasTomorrow dayOfWeek locations location404Msg
                let chatID = TGM.chat_id . TGM.chat $ m
                let messageID = TGM.message_id m
 
@@ -77,6 +79,18 @@ app pathToListen =
                      liftIO $ putStrLn "Request succeded"
 
                text ""
+
+-- it's certainly a very bad function
+locationMessage :: Bool -> Int -> [T.Text] -> T.Text -> T.Text
+locationMessage True dow = locationMessage' (nextDay dow)
+locationMessage _    dow = locationMessage' dow
+
+locationMessage' :: Int -> [T.Text] -> T.Text -> T.Text
+locationMessage' dow locations defaultMsg =
+    fromMaybe defaultMsg (locations `safeIndex` (dow - 1))
+
+nextDay :: Int -> Int
+nextDay day = ((day `mod` 7) + 1)
 
 safeIndex :: [a] -> Int -> Maybe a
 safeIndex xs i
