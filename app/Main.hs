@@ -14,15 +14,18 @@ import           GHC.Generics
 import           Network.HTTP.Client         (newManager)
 import           Network.HTTP.Client.TLS     (tlsManagerSettings)
 import           Servant.Common.Req          (ServantError)
+import           System.Environment          (getEnv)
 import           System.Envy
 import           Web.Spock
 import           Web.Spock.Config
 import qualified Web.Telegram.API.Bot        as TGM
+import qualified Data.ByteString.Char8       as C
+import Data.Text.Encoding (decodeUtf8')
 
 data BKConfig = BKConfig {
-    port           :: Int -- "PORT"
-  , tgmbkToken     :: T.Text -- "TGMBK_TOKEN"
-  , tgmbkLocations :: [T.Text] -- "TGMBK_LOCATIONS"
+    port                :: Int -- "PORT"
+  , tgmbkToken          :: T.Text -- "TGMBK_TOKEN"
+  , tgmbkLocations      :: [T.Text] -- "TGMBK_LOCATIONS"
   , tgmbkLocation404Msg :: T.Text -- "TGMBK_LOCATION_404_MSG"
   } deriving (Generic, Show)
 
@@ -33,7 +36,7 @@ instance FromEnv BKConfig
 
 instance System.Envy.Var [T.Text] where
   toVar =  T.unpack . T.intercalate ", "
-  fromVar = Just . (map T.strip) . (T.splitOn ",") . T.pack
+  fromVar = Just . (map T.strip) . (T.splitOn ",") . decodeUtf8String
 
 data MySession = EmptySession
 data MyAppState = MyAppState BKConfig
@@ -53,15 +56,13 @@ runApp cfg =
 
 app :: String -> SpockM () MySession MyAppState ()
 app pathToListen =
-    do get root $
-           text ""
+    do get root $ text ""
        post (static pathToListen) $
             do (MyAppState (BKConfig {
                     tgmbkToken=token
-                  -- , tgmbkLocations=locations
+                  , tgmbkLocations=locations
                   , tgmbkLocation404Msg=location404Msg
                   })) <- getState
-               let locations = ["匯成（長城對面）", "Grove", "瑞士咖啡室", "廳2", "J's Petite Kitchen"]
                TGM.Update { TGM.message=Just m } <- jsonBody'
                let hasTomorrow = case TGM.text m of
                                   Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
@@ -81,6 +82,17 @@ app pathToListen =
                      liftIO $ putStrLn "Request succeded"
 
                text ""
+
+-- decodeUtf8String decodes an array of Char where
+-- EACH Char is one byte of a UTF-8 character.
+-- The reason of having this is because unicode env var
+-- received from heroku is encoded in this way,
+-- instead of each Char being one UTF-8 character.
+decodeUtf8String :: String -> T.Text
+decodeUtf8String s =
+    case decodeUtf8' . C.pack $ s of
+      Left _ -> T.pack s
+      Right t -> t
 
 -- it's certainly a very bad function
 locationMessage :: Bool -> Int -> [T.Text] -> T.Text -> T.Text

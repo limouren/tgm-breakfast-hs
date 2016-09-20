@@ -26,6 +26,7 @@ executable tgm-breakfast-hs-exe
   build-depends:       base
                      , tgm-breakfast-hs
                      , Spock >= 0.11
+                     , bytestring
                      , envy
                      , http-client
                      , http-client-tls
