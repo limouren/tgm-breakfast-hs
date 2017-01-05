@@ -6,21 +6,20 @@
 module Main where
 
 import           Control.Monad.Trans
+import qualified Data.ByteString.Char8       as C
 import           Data.Maybe
 import qualified Data.Text                   as T
+import           Data.Text.Encoding          as T
 import           Data.Time
 import           Data.Time.Calendar.WeekDate
 import           GHC.Generics
 import           Network.HTTP.Client         (newManager)
 import           Network.HTTP.Client.TLS     (tlsManagerSettings)
 import           Servant.Common.Req          (ServantError)
-import           System.Environment          (getEnv)
 import           System.Envy
 import           Web.Spock
 import           Web.Spock.Config
 import qualified Web.Telegram.API.Bot        as TGM
-import qualified Data.ByteString.Char8       as C
-import Data.Text.Encoding (decodeUtf8')
 
 data BKConfig = BKConfig {
     port                :: Int -- "PORT"
@@ -38,6 +37,9 @@ instance System.Envy.Var [T.Text] where
   toVar =  T.unpack . T.intercalate ", "
   fromVar = Just . (map T.strip) . (T.splitOn ",") . decodeUtf8String
 
+type BKApp = SpockM () MySession MyAppState ()
+type BKAction = SpockAction () MySession MyAppState
+
 data MySession = EmptySession
 data MyAppState = MyAppState BKConfig
 
@@ -54,34 +56,38 @@ runApp cfg =
        spockCfg <- defaultSpockCfg EmptySession PCNoDatabase (MyAppState cfg)
        runSpock port' (spock spockCfg (app path))
 
-app :: String -> SpockM () MySession MyAppState ()
+app :: String -> BKApp
 app pathToListen =
     do get root $ text ""
        post (static pathToListen) $
-            do (MyAppState (BKConfig {
+            do handleWebhook
+
+handleWebhook :: BKAction a
+handleWebhook =
+    do MyAppState BKConfig {
                     tgmbkToken=token
                   , tgmbkLocations=locations
                   , tgmbkLocation404Msg=location404Msg
-                  })) <- getState
-               TGM.Update { TGM.message=Just m } <- jsonBody'
-               let hasTomorrow = case TGM.text m of
-                                  Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
-                                  Nothing -> False
-               dayOfWeek <- liftIO $ localDayOfWeek <$> getCurrentTime
+                  } <- getState
+       TGM.Update { TGM.message=Just m } <- jsonBody'
+       let hasTomorrow = case TGM.text m of
+                          Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
+                          Nothing -> False
+       dayOfWeek <- liftIO $ localDayOfWeek <$> getCurrentTime
 
-               let messageText = locationMessage hasTomorrow dayOfWeek locations location404Msg
-               let chatID = TGM.chat_id . TGM.chat $ m
-               let messageID = TGM.message_id m
+       let messageText = locationMessage hasTomorrow dayOfWeek locations location404Msg
+       let chatID = TGM.chat_id . TGM.chat $ m
+       let messageID = TGM.message_id m
 
-               let req = replyToMessageRequest chatID messageText messageID
-               resp <- liftIO $ doSendMessage (TGM.Token token) req
-               case resp of
-                   Left _ -> do
-                     liftIO $ putStrLn "Request failed"
-                   Right (TGM.Response _) -> do
-                     liftIO $ putStrLn "Request succeded"
+       let req = replyToMessageRequest chatID messageText messageID
+       resp <- liftIO $ doSendMessage (TGM.Token token) req
+       case resp of
+           Left _ -> do
+             liftIO $ putStrLn "Request failed"
+           Right (TGM.Response _) -> do
+             liftIO $ putStrLn "Request succeded"
 
-               text ""
+       text ""
 
 -- decodeUtf8String decodes an array of Char where
 -- EACH Char is one byte of a UTF-8 character.
@@ -90,7 +96,7 @@ app pathToListen =
 -- instead of each Char being one UTF-8 character.
 decodeUtf8String :: String -> T.Text
 decodeUtf8String s =
-    case decodeUtf8' . C.pack $ s of
+    case T.decodeUtf8' . C.pack $ s of
       Left _ -> T.pack s
       Right t -> t
 
