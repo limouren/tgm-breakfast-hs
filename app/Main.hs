@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
 import           Control.Monad.Trans
@@ -58,11 +59,11 @@ app :: String -> SpockM () MySession MyAppState ()
 app pathToListen =
     do get root $ text ""
        post (static pathToListen) $
-            do (MyAppState (BKConfig {
+            do (MyAppState BKConfig {
                     tgmbkToken=token
                   , tgmbkLocations=locations
                   , tgmbkLocation404Msg=location404Msg
-                  })) <- getState
+                  }) <- getState
                TGM.Update { TGM.message=Just m } <- jsonBody'
                let hasTomorrow = case TGM.text m of
                                   Just x  -> T.isInfixOf (T.toCaseFold "tomorrow") (T.toCaseFold x)
@@ -73,13 +74,11 @@ app pathToListen =
                let chatID = TGM.chat_id . TGM.chat $ m
                let messageID = TGM.message_id m
 
-               let req = replyToMessageRequest chatID messageText messageID
+               let req = replyToMessageRequest (TGM.ChatId chatID) messageText messageID
                resp <- liftIO $ doSendMessage (TGM.Token token) req
                case resp of
-                   Left _ -> do
-                     liftIO $ putStrLn "Request failed"
-                   Right (TGM.Response _) -> do
-                     liftIO $ putStrLn "Request succeded"
+                   Left _ -> liftIO $ putStrLn "Request failed"
+                   Right (TGM.Response _ _) -> liftIO $ putStrLn "Request succeded"
 
                text ""
 
@@ -104,7 +103,7 @@ locationMessage' dow locations defaultMsg =
     fromMaybe defaultMsg (locations `safeIndex` (dow - 1))
 
 nextDay :: Int -> Int
-nextDay day = ((day `mod` 7) + 1)
+nextDay day = (day `mod` 7) + 1
 
 safeIndex :: [a] -> Int -> Maybe a
 safeIndex xs i
@@ -120,8 +119,8 @@ localDayOfWeek = (\(_, _, dayOfWeek) -> dayOfWeek)
                . localDay
                . utcToLocalTime hkt
 
-replyToMessageRequest :: Int -> T.Text -> Int -> TGM.SendMessageRequest
-replyToMessageRequest chatID bodyText replyToMsgID = TGM.SendMessageRequest (showT chatID) bodyText Nothing Nothing Nothing (Just replyToMsgID) Nothing
+replyToMessageRequest :: TGM.ChatId -> T.Text -> Int -> TGM.SendMessageRequest
+replyToMessageRequest chatID bodyText replyToMsgID = TGM.SendMessageRequest chatID bodyText Nothing Nothing Nothing (Just replyToMsgID) Nothing
 
 doSendMessage :: TGM.Token
                  -> TGM.SendMessageRequest
