@@ -1,13 +1,13 @@
 name:                tgm-breakfast-hs
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            Simple Telegram Bot that tells you what to eat this morning
 description:         Please see README.md
-homepage:            https://github.com/githubuser/tgm-breakfast-hs#readme
+homepage:            https://github.com/limouren/tgm-breakfast-hs#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
+author:              Kenji Pa
+maintainer:          limouren@gmail.com
+copyright:           2016 Kenji Pa
 category:            Web
 build-type:          Simple
 -- extra-source-files:
@@ -48,4 +48,4 @@ test-suite tgm-breakfast-hs-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/tgm-breakfast-hs
+  location: https://github.com/limouren/tgm-breakfast-hs
